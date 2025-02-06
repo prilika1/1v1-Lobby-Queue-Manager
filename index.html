@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta http-equiv="X-UA-Compatible" content="ie=edge">
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+		<title>1v1 Lobby Queue Manager</title>
+	</head>
+	<body>
+		<br><br>
+		<h1>1v1 Lobby Queue Manager</h1>
+		<br><br>
+
+		<form id="form_wrapper">
+			<label for="playername">Player Name:</label>
+			<input type="text" id="player_name" name="playername" class="player-name-input">
+			<input id="add_player" type="button" value="Add" class="add-player-button">
+			<br><br><br>
+			<input id="next_matchup" type="button" value="Next Matchup" class="matchup-button">
+		</form>
+		
+		<br>
+
+		<p id="error_output" style="color:red;"></p>
+
+		<hr><br>
+
+		<div id="matchup_container" class="matchup-flex-container-div">
+			<div id="p1"><h2></h2></div>
+			<h2 style="order:2;" id="next_matchup_output">Add some players and click the "Next Matchup" button for a matchup.</h2>
+			<div id="p2"><h2></h2></div>
+		</div>
+
+		<br><hr><br>
+
+		<p id="total_game_counter">Total games: <b>0</b></p>
+		<table id="queue_table">
+			<tr>
+				<th style="width:10%;">#</th>
+				<th style="width:52.5%;">Player Name</th>
+				<th style="width:20%;">Game Count</th>
+				<th style="width:17.5%;"></th>
+			</tr>
+		</table>
+
+		<p id="test"></p>
+
+		<style>
+			
+			#p1 {
+				order: 1;
+			}
+
+			#p2 {
+				order: 3;
+			}
+			
+			.player-name-input {
+				color: black;
+				margin-top: 0px;
+			}
+		
+			.add-player-button {
+				background-color: rgb(67, 161, 67);
+				margin: 1px 1px;
+				padding: 4px 16px;
+				border-radius: 8px;
+				border: none;
+				transition: .08s ease-in-out;
+			}
+
+			.add-player-button:hover {
+				background-color: rgb(92, 201, 92);
+				margin: 0px 0px;
+				padding: 5px 17px;
+				border-radius: 8px;
+			}
+		
+			.matchup-button {
+				background-color:rgb(86, 111, 255);
+				margin: 2px 2px;
+				padding: 20px 30px;
+				border-radius: 16px;
+				/*border:solid 2px lightskyblue;*/
+				border: none;
+				transition: .08s ease-in-out;
+			}
+
+			.matchup-button:hover {
+				background-color:rgb(67, 87, 204);
+				margin: 0px 0px;
+				padding: 22px 32px;
+				border-radius: 16px;
+				/*border:solid 2px lightskyblue;*/
+			}
+
+			.remove-player-button {
+				/*#d9534f #d43f3a*/
+				background-color: #d64d48;
+				margin: 1px 1px;
+				padding: 8px 18px;
+				border-radius: 4px;
+				border: none;
+			}
+
+			.remove-player-button:hover {
+				background-color: #b62736;
+				margin: 1px 1px;
+				padding: 8px 18px;
+				border-radius: 4px;
+				border: none;
+			}
+
+			.cell-div {
+				margin: 0px;
+				border-radius:4px;
+			}
+
+			.cell-p {
+				height: 100%;
+				width: 100%;
+				text-align: left;
+				padding: 8px 0px 8px 20px;
+				margin: 0px;
+			}
+
+			.matchup-flex-container-div {
+				display: flex;
+				justify-content: center;
+				align-items: center;
+			}
+		
+			body {
+				text-align: center;
+				font-size: 16px;
+				color: #f7f7f7;
+				background-color: #2f3136;
+			}
+		
+			table {
+				width: 60%;
+				margin: auto;
+			}
+		
+			tr:nth-child(odd) {
+				background-color: #252525;
+				border: solid black 2px;
+			}
+		
+			th {
+				border: solid black 2px;
+				text-align: center;
+			}
+		
+			td {
+				border: solid black 2px;
+				text-align: center;
+			}
+
+		</style>
+
+		<script>
+
+			// DOM-related Variables
+			const formWrapper = document.getElementById("form_wrapper");
+			const inputPlayerNameText = document.getElementById("player_name");
+			const buttonAddPlayer = document.querySelector("#add_player");
+			const buttonNextMatchup = document.querySelector("#next_matchup");
+			const divMatchupContainer = document.getElementById("matchup_container");
+			const textNextMatchupOutput = document.getElementById("next_matchup_output");
+			const textTotalGamesCounter = document.getElementById("total_game_counter");
+			const tableQueue = document.getElementById("queue_table");
+			const textErrorOutput = document.getElementById("error_output");
+			const test = document.getElementById("test");
+			const divP1 = document.getElementById("p1");
+			const divP2 = document.getElementById("p2");
+
+
+			// Queue-related Variables
+			const queue = [];
+			const gameCounts = {};
+			var cache = [];
+			var cacheSize = 1;
+			var totalGames = 0;
+
+
+			// DOM-related Event Handler Functions
+			formWrapper.onsubmit = () => {
+				// This function is here to prevent page refresh problems
+				// when the user presses enter to submit a player name.
+				textErrorOutput.innerHTML = "";
+				let flag = false;
+				try {
+					var tmp_name = addPlayer(inputPlayerNameText.value);
+					flag = true;
+					//console.log("Added player " + tmp_name + " to queue.");
+				}
+				catch (err) {
+					console.log(err);
+				}
+				
+				if (flag) {
+					// Create remove button object
+					var removeButton = document.createElement("BUTTON");
+					removeButton.id = "remove_button";
+					removeButton.setAttribute("index", queue.length);
+					removeButton.setAttribute("class", "remove-player-button");
+					removeButton.innerHTML = "Remove";
+					removeButton.addEventListener("click", removePlayer);
+
+					// Create name container div
+					var nameContainer = buildDiv(tmp_name);
+
+					var row = tableQueue.insertRow(-1);
+					row.insertCell(0).innerHTML = `${queue.length}`;
+					row.insertCell(1).appendChild(nameContainer);
+					row.insertCell(2).innerHTML = `${gameCounts[tmp_name]}`;
+					row.insertCell(3).appendChild(removeButton);
+					//console.log("Added player " + tmp_name + " to table.");
+				}
+
+				inputPlayerNameText.value = "";
+				inputPlayerNameText.focus();
+
+				return false
+			}
+
+
+			buttonAddPlayer.onclick = () => {
+				textErrorOutput.innerHTML = "";
+				let flag = false;
+				try {
+					var tmp_name = addPlayer(inputPlayerNameText.value);
+					flag = true;
+					//console.log("Added player " + tmp_name + " to queue.");
+				}
+				catch (err) {
+					console.log(err);
+				}
+				
+				if (flag) {
+					// Create remove button object
+					var removeButton = document.createElement("BUTTON");
+					removeButton.id = "remove_button";
+					removeButton.setAttribute("index", queue.length);
+					removeButton.setAttribute("class", "remove-player-button");
+					removeButton.innerHTML = "Remove";
+					removeButton.addEventListener("click", removePlayer);
+
+					// Create name container div
+					var nameContainer = buildDiv(tmp_name);
+
+					var row = tableQueue.insertRow(-1);
+					row.insertCell(0).innerHTML = `${queue.length}`;
+					row.insertCell(1).appendChild(nameContainer);
+					row.insertCell(2).innerHTML = `${gameCounts[tmp_name]}`;
+					row.insertCell(3).appendChild(removeButton);
+					//console.log("Added player " + tmp_name + " to table.");
+				}
+
+				inputPlayerNameText.value = "";
+				inputPlayerNameText.focus();
+			}
+
+
+			buttonNextMatchup.onclick = () => {
+				textErrorOutput.innerHTML = "";
+				var error = "Not enough players for a game.";
+				var p1;
+				var p2;
+				var p1_index = 999;
+				var p2_index = 999;
+				var isValid = false;
+
+				//console.log("Attempting to pick both players...");
+				console.log("Cache at start of selection: " + cache);
+				console.log("Cache Size: " + cacheSize);
+				if (queue.length >= 2) {
+					
+					if (cache.length == cacheSize) {
+						cache = [];
+					}
+
+					for (let i = 0; i < queue.length - 1; i++) {
+						for (let j = i + 1; j < queue.length; j++) {
+							if (!(cache.includes(matchupString(queue[i], queue[j])))) {
+								p1_index = i;
+								p2_index = j;
+								break;
+							}
+						}
+						if (p1_index != 999) {
+							break;
+						}
+					}
+
+					if (p1_index == 999) {
+						throw "Critical error, matchup could not be generated.";
+						error = "Critical error, matchup could not be generated.";
+					}
+
+					p2 = queue[p2_index];
+					p1 = queue[p1_index];
+					queue.splice(p2_index, 1);
+					queue.splice(p1_index, 1);
+
+					queue.push(p1);
+					queue.push(p2);
+					cache.push(matchupString(p1, p2));
+					console.log("Cache at end of selection: " + cache);
+					console.log("Matchup found, players moved to back of queue.");
+
+					gameCounts[p1]++;
+					gameCounts[p2]++;
+
+					totalGames++;
+					textTotalGamesCounter.innerHTML = "Total games: <b>" + totalGames + "</b>";
+					isValid = true;
+				}
+
+				buildMatchupContainer(p1, p2, isValid, error);
+				rebuildTable();
+			}
+
+
+			// Helper Functions
+			function buildMatchupContainer(p1, p2, isValid, err) {
+
+				// Function for reformatting the entire build
+				// matchup container div 
+				
+				if (isValid) {
+					let generic = "border-radius:16px;";
+					generic += "min-width:20%;";
+					generic += "margin:0px 24px 0px 24px;";
+					generic += "padding: 0px 0px 10px 0px;";
+
+					let p1_str = "background-color:" + getColourFromName(p1) + ";";
+					p1_str += "color:" + getTextColourBW(getColourFromName(p1)) + ";";
+					p1_str += generic;
+
+					let p2_str = "background-color:" + getColourFromName(p2) + ";";
+					p2_str += "color:" + getTextColourBW(getColourFromName(p2)) + ";";
+					p2_str += generic;
+
+					divP1.setAttribute("style", p1_str);
+					divP2.setAttribute("style", p2_str);
+
+					divP1.children[0].innerHTML = p1;
+					divP2.children[0].innerHTML = p2;
+
+					textNextMatchupOutput.innerHTML = (" VS ");
+				}
+				else {
+					divP1.children[0].innerHTML = "";
+					divP2.children[0].innerHTML = "";
+					divP1.setAttribute("style", "");
+					divP2.setAttribute("style", "");
+					textNextMatchupOutput.innerHTML = err;
+				}
+				
+			}
+
+			function buildDiv(name) {
+
+				// Function for generating each div
+				// element in the queue table.
+
+				var outputDiv = document.createElement("DIV");
+				var tmp_colour = getColourFromName(name);
+				var styleString = "background-color:" + tmp_colour;
+				styleString += ";color:" + getTextColourBW(tmp_colour) + ";";
+				outputDiv.setAttribute("style", styleString);
+				
+				outputDiv.setAttribute("class", "cell-div");
+
+				var p = document.createElement("P");
+				p.innerHTML = name;
+				p.setAttribute("class", "cell-p");
+				outputDiv.appendChild(p);
+
+				return outputDiv
+			}
+
+
+			function rebuildTable() {
+				let count = 1;
+
+				queue.forEach((player) => {
+					tableQueue.rows[count].cells[0].innerHTML = count;
+					tableQueue.rows[count].cells[1].replaceChild(buildDiv(player), tableQueue.rows[count].cells[1].children[0]);
+					tableQueue.rows[count].cells[2].innerHTML = gameCounts[player];
+					tableQueue.rows[count].cells[3].children[0].setAttribute("index", count);
+					count += 1;
+				});
+
+				//console.log("Rebuilt table.");
+			}
+
+
+			function matchupString(p1, p2) {
+
+				// Function for having a consistent string
+				// representation of a matchup between two
+				// players, even if inputs are inverted.
+
+				player1 = p1.toString();
+				player2 = p2.toString();
+				if (player1.localeCompare(player2) < 1) {
+					//console.log("Generated matchup string for " + p1 + " and " + p2 + " as " + p1 + p2 + ".");
+					return player1 + player2;
+				}
+				else {
+					//console.log("Generated matchup string for " + p1 + " and " + p2 + " as " + p2 + p1 + ".");
+					return player2 + player1;
+				}
+			}
+
+
+			function removePlayer() {
+				textErrorOutput.innerHTML = "";
+				var index = this.getAttribute("index");
+				var name = this.parentElement.parentElement.cells[1].children[0].children[0].innerHTML;
+				//console.log("Removing player " + name + " from queue and table.");
+				queue.splice(index - 1, 1);
+				this.parentElement.parentElement.parentElement.deleteRow(index);
+				rebuildTable();
+
+				if (queue.length > 1) {
+					cacheSize -= queue.length;
+					//console.log("Matchup cache size decreased.");
+				}
+
+				//console.log("Scrubbing cached games from player " + name + ".");
+				const tmp_list = [];
+				for (let i = 0; i < queue.length; i++) {
+					tmp_list.push(matchupString(name, queue[i]));
+				}
+
+				tmp_list.forEach((matchup) => {
+					if (cache.includes(matchup)) {
+						
+						tmp_index = -1;
+						for (let i = 0; i < cache.length; i++) {
+							if (cache[i] == matchup) {
+								tmp_index = i;
+								break;
+							}
+						}
+						cache.splice(tmp_index, 1);
+
+					}
+				})
+			}
+			
+
+			function addPlayer(name) {
+
+				if (queue.includes(name)) {
+					textErrorOutput.innerHTML = "*Player already in queue.";
+					throw "Player already in queue.";
+				}
+				else if (name === "") {
+					textErrorOutput.innerHTML = "*Player name cannot be blank.";
+					throw "Player name cannot be blank.";
+				}
+				else if (name != "") {
+					if (queue.length > 1) {
+						balanceCache(name);
+						cacheSize += queue.length;
+						console.log("Matchup cache size increased.");
+					}
+					
+					queue.push(name);
+					gameCounts[name] = 0;
+					console.log(name + " added to queue.");
+
+					return name;
+				}
+				else {
+					console.log("Should be impossible to get here, addPlayer() failsafe.");
+					textErrorOutput.innerHTML = "Unexpected error.";
+					throw "Should be impossible to get here, addPlayer failsafe.";
+				}
+			}
+
+
+			function balanceCache(name) {
+				
+				// Looks at queue BEFORE new player addition and
+				// determines how many matchups (including new player)
+				// to pad the cache with. The ratio of cached games to
+				// total cache size is taken from the existing queue
+				// and applied to generate a proportional amount of
+				// matchups for the new player while prioritizing
+				// players at the end of the queue.
+				
+				if (cache.length >= Math.ceil(queue.length / 2) && queue.length > 1) {
+					let cacheCompletion = 1.0 * cache.length / cacheSize;
+					let gameCount = Math.floor(1.0 * cacheCompletion * (queue.length));
+					console.log("cacheCompletion: " + cacheCompletion);
+					console.log("gameCount: " + gameCount);
+					for (let i = queue.length - 1; i > queue.length - gameCount - 1; i--) {
+						console.log("pushing, i = " + i);
+						cache.push(matchupString(name, queue[i]));
+					}
+				}
+			}
+
+
+			function getColourFromName(name) {
+
+				// Function from Stack Overflow
+				// https://stackoverflow.com/a/16348977
+
+				let hex = name.toLowerCase()
+				if (hex.length < 5) {
+					hex += "abcde"
+				}
+
+				let hash = 0;
+				hex.split('').forEach(char => {
+					hash = char.charCodeAt(0) + ((hash << 5) - hash);
+				})
+				
+				let colour = '#';
+				for (let i = 0; i < 3; i++) {
+					const value = (hash >> (i * 8)) & 0xff;
+					colour += value.toString(16).padStart(2, '0');
+				}
+
+				return colour;
+			}
+
+
+			function getTextColourBW(hex) {
+
+				// Function from Stack Overflow
+				// https://stackoverflow.com/a/35970186
+
+				hex = hex.slice(1);
+				
+				if (hex.length !== 6) {
+					console.log("Invalid HEX colour.");
+					return '#FFFFFF'
+				}
+
+				var r = parseInt(hex.slice(0, 2), 16),
+					g = parseInt(hex.slice(2, 4), 16),
+					b = parseInt(hex.slice(4, 6), 16);
+				
+					// 0.587 is original value multiplied with g, but increased
+					// to 0.717 for better visibility with some brighter greens
+				return (r * 0.299 + g * 0.717 + b * 0.114) > 186 ? '#000000' : '#FFFFFF';
+
+			}
+
+		</script>
+	</body>
+</html>
