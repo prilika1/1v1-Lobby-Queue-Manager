@@ -181,6 +181,7 @@
 			// Queue-related Variables
 			const queue = [];
 			const gameCounts = {};
+			const lastPlayed = {};
 			var cache = [];
 			var cacheSize = 1;
 			var totalGames = 0;
@@ -273,6 +274,7 @@
 				var p1_index = 999;
 				var p2_index = 999;
 				var isValid = false;
+				var isNotLastPlayed = false;
 
 				//console.log("Attempting to pick both players...");
 				console.log("Cache at start of selection: " + cache);
@@ -285,7 +287,8 @@
 
 					for (let i = 0; i < queue.length - 1; i++) {
 						for (let j = i + 1; j < queue.length; j++) {
-							if (!(cache.includes(matchupString(queue[i], queue[j])))) {
+							isNotLastPlayed = lastPlayed[queue[i]] !== queue[j] && lastPlayed[queue[j]] !== queue[i];
+							if (!(cache.includes(matchupString(queue[i], queue[j]))) && (isNotLastPlayed || queue.length < 3)) {
 								p1_index = i;
 								p2_index = j;
 								break;
@@ -305,6 +308,8 @@
 					p1 = queue[p1_index];
 					queue.splice(p2_index, 1);
 					queue.splice(p1_index, 1);
+					lastPlayed[p1] = p2;
+					lastPlayed[p2] = p1;
 
 					queue.push(p1);
 					queue.push(p2);
@@ -475,6 +480,7 @@
 					
 					queue.push(name);
 					gameCounts[name] = 0;
+					lastPlayed[name] = "";
 					console.log(name + " added to queue.");
 
 					return name;
