@@ -277,8 +277,6 @@
 				var isNotLastPlayed = false;
 
 				//console.log("Attempting to pick both players...");
-				console.log("Cache at start of selection: " + cache);
-				console.log("Cache Size: " + cacheSize);
 				if (queue.length >= 2) {
 					
 					if (cache.length == cacheSize) {
@@ -315,7 +313,7 @@
 					queue.push(p2);
 					cache.push(matchupString(p1, p2));
 					console.log("Cache at end of selection: " + cache);
-					console.log("Matchup found, players moved to back of queue.");
+					//console.log("Matchup found, players moved to back of queue.");
 
 					gameCounts[p1]++;
 					gameCounts[p2]++;
@@ -367,6 +365,7 @@
 				}
 				
 			}
+
 
 			function buildDiv(name) {
 
@@ -428,7 +427,7 @@
 				textErrorOutput.innerHTML = "";
 				var index = this.getAttribute("index");
 				var name = this.parentElement.parentElement.cells[1].children[0].children[0].innerHTML;
-				//console.log("Removing player " + name + " from queue and table.");
+				console.log("Removing player " + name + " from queue and table.");
 				queue.splice(index - 1, 1);
 				this.parentElement.parentElement.parentElement.deleteRow(index);
 				rebuildTable();
@@ -482,6 +481,7 @@
 					gameCounts[name] = 0;
 					lastPlayed[name] = "";
 					console.log(name + " added to queue.");
+					console.log("Cache after addition: " + cache);
 
 					return name;
 				}
@@ -501,15 +501,13 @@
 				// total cache size is taken from the existing queue
 				// and applied to generate a proportional amount of
 				// matchups for the new player while prioritizing
-				// players at the end of the queue.
+				// players at the start of the queue.
 				
 				if (cache.length >= Math.ceil(queue.length / 2) && queue.length > 1) {
 					let cacheCompletion = 1.0 * cache.length / cacheSize;
 					let gameCount = Math.floor(1.0 * cacheCompletion * (queue.length));
-					console.log("cacheCompletion: " + cacheCompletion);
-					console.log("gameCount: " + gameCount);
-					for (let i = queue.length - 1; i > queue.length - gameCount - 1; i--) {
-						console.log("pushing, i = " + i);
+
+					for (let i = 0; i < gameCount; i++) {
 						cache.push(matchupString(name, queue[i]));
 					}
 				}
